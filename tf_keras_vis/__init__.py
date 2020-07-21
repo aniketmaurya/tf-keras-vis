@@ -39,15 +39,15 @@ class ModelVisualization(ABC):
         """
         raise NotImplementedError()
 
-    def _get_losses_for_multiple_outputs(self, loss):
-        losses = listify(loss)
-        if len(losses) == 1 and len(losses) < len(self.model.outputs):
-            losses = losses * len(self.model.outputs)
-        if len(losses) != len(self.model.outputs):
+    def _get_scores_for_multiple_outputs(self, score):
+        scores = listify(score)
+        if len(scores) == 1 and len(scores) < len(self.model.outputs):
+            scores = scores * len(self.model.outputs)
+        if len(scores) != len(self.model.outputs):
             raise ValueError(('The model has {} outputs, '
-                              'but the number of loss-functions you passed is {}.').format(
-                                  len(self.model.outputs), len(losses)))
-        return losses
+                              'but the number of score-functions you passed is {}.').format(
+                                  len(self.model.outputs), len(scores)))
+        return scores
 
     def _get_seed_inputs_for_multiple_inputs(self, seed_input):
         seed_inputs = listify(seed_input)

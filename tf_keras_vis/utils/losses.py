@@ -1,41 +1,10 @@
-from abc import ABC, abstractmethod
+import warnings
 
-import numpy as np
-import tensorflow as tf
-import tensorflow.keras.backend as K
+import tf_keras_vis.scores.BinaryScore as BinaryLoss  # noqa: F401
+import tf_keras_vis.scores.CategoricalScore as CategoricalLoss  # noqa: F401
+import tf_keras_vis.scores.InactiveScore as InactiveLoss  # noqa: F401
+import tf_keras_vis.scores.Score as Loss  # noqa: F401
+import tf_keras_vis.scores.SmoothedCategoricalScore as SmoothedCategoricalLoss  # noqa: F401
 
-from tf_keras_vis.utils import listify
-
-
-class Loss(ABC):
-    def __init__(self, name):
-        self.name = name
-
-    @abstractmethod
-    def __call__(self, output):
-        raise NotImplementedError()
-
-
-class CategoricalScore(Loss):
-    def __init__(self, indices, depth):
-        super().__init__('CategoricalScore')
-        self.indices = listify(indices)
-        self.depth = depth
-
-    def __call__(self, output):
-        score = output * tf.one_hot(self.indices, self.depth)
-        return K.mean(score, axis=tuple(range(len(score.shape))[1:]))
-
-
-class SmoothedCategoricalScore(Loss):
-    def __init__(self, indices, epsilon=0.05):
-        super().__init__('CategoricalSmoothedScore')
-        self.indices = listify(indices)
-        self.epsilon = epsilon
-
-    def __call__(self, output):
-        smoothing_label = np.full(output.shape, self.epsilon / (np.prod(output.shape) - 1.))
-        for i in self.indices:
-            smoothing_label[..., i] = 1. - self.epsilon
-        score = output * smoothing_label
-        return K.mean(score, axis=tuple(range(len(score.shape))[1:]))
+warnings.warn(('`tf_keras_vis.utils.losses` module is deprecated.'
+               'This will be removed in future.'), DeprecationWarning)

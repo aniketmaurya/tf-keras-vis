@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.preprocessing.image import random_rotation
+from scipy.ndimage import rotate
 
 
 class InputModifier(ABC):
@@ -21,31 +21,25 @@ class InputModifier(ABC):
 
 
 class Jitter(InputModifier):
-    def __init__(self, jitter=0.05):
+    def __init__(self, jitter=4):
         """Implements an input modifier that introduces random jitter.
             Jitter has been shown to produce crisper activation maximization images.
 
         # Arguments:
-            jitter: The amount of jitter to apply, scalar or sequence. If a scalar, same jitter is
-                applied to all image dims. If sequence, `jitter` should contain a value per image
-                dim. A value between `[0., 1.]` is interpreted as a percentage of the image
-                dimension. (Default value: 0.05)
+            jitter: Integer. The amount of jitter to apply.
         """
-        self.jitter = None
-        self._jitter = jitter
+        self.jitter = jitter
 
     def __call__(self, seed_input):
-        if self.jitter is None:
-            self.jitter = [
-                dim * self._jitter if self._jitter < 1. else self._jitter
-                for dim in seed_input.shape[1:-1]
-            ]
-        return tf.roll(seed_input, [np.random.randint(-j, j + 1) for j in self.jitter],
-                       tuple(range(len(seed_input.shape))[1:-1]))
+        ndim = len(seed_input.shape)
+        seed_input = tf.roll(seed_input,
+                             shift=tuple(np.random.randint(-self.jitter, self.jitter, ndim - 2)),
+                             axis=tuple(range(ndim)[1:-1]))
+        return seed_input
 
 
 class Rotate(InputModifier):
-    def __init__(self, degree=1.):
+    def __init__(self, degree=2.):
         """Implements an input modifier that introduces random rotation.
             Rotate has been shown to produce crisper activation maximization images.
 
@@ -57,7 +51,23 @@ class Rotate(InputModifier):
     def __call__(self, seed_input):
         if tf.is_tensor(seed_input):
             seed_input = seed_input.numpy()
-        seed_input = np.array([
-            random_rotation(x, self.rg, row_axis=0, col_axis=1, channel_axis=2) for x in seed_input
+        seed_input = rotate(seed_input,
+                            np.random.uniform(-self.rg, self.rg),
+                            axes=tuple(range(len(seed_input.shape))[1:-1]),
+                            reshape=False,
+                            mode='reflect')
+        return seed_input
+
+
+class Noise(InputModifier):
+    def __init__(self, rate=0.05):
+        self.rate = rate
+
+    def __call__(self, seed_input):
+        noise = tf.stack([
+            tf.random.normal(
+                seed_input[i].shape,
+                stddev=(tf.math.reduce_max(seed_input[i]) - tf.math.reduce_max(seed_input[i])) *
+                self.rate) for i in range(seed_input.shape[0])
         ])
-        return tf.constant(seed_input)
+        return seed_input + noise

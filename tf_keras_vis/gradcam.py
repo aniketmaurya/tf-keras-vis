@@ -10,30 +10,28 @@ from tf_keras_vis.utils import find_layer, zoom_factor
 
 class Gradcam(ModelVisualization):
     def __call__(self,
-                 loss,
+                 score,
                  seed_input,
                  penultimate_layer=-1,
                  seek_penultimate_conv_layer=True,
                  activation_modifier=lambda cam: K.relu(cam),
-                 normalize_gradient=False,
                  expand_cam=True):
         """Generate gradient based class activation maps (CAM) by using positive gradient of
-            penultimate_layer with respect to loss.
+            penultimate_layer with respect to score.
 
             For details on Grad-CAM, see the paper:
             [Grad-CAM: Why did you say that? Visual Explanations from Deep Networks via
             Gradient-based Localization](https://arxiv.org/pdf/1610.02391v1.pdf).
 
         # Arguments
-            loss: A loss function. If the model has multiple outputs, you can use a different
-                loss on each output by passing a list of losses.
+            score: A score function. If the model has multiple outputs, you can use a different
+                score function on each output by passing a list of score functions.
             seed_input: An N-dim Numpy array. If the model has multiple inputs,
                 you have to pass a list of N-dim Numpy arrays.
             penultimate_layer: A number of integer or a tf.keras.layers.Layer object.
             seek_penultimate_conv_layer: True to seek the penultimate layter that is a subtype of
                 `keras.layers.convolutional.Conv` class.
                 If False, the penultimate layer is that was elected by penultimate_layer index.
-            normalize_gradient: True to normalize gradients.
             activation_modifier: A function to modify gradients.
             expand_cam: True to expand cam to same as input image size.
                 ![Note] Even if the model has multiple inputs, this function return only one cam
@@ -41,12 +39,12 @@ class Gradcam(ModelVisualization):
                 a model that has multiple inputs).
         # Returns
             The heatmap image or a list of their images that indicate the `seed_input` regions
-                whose change would most contribute  the loss value,
+                whose change would most contribute  the score value,
         # Raises
-            ValueError: In case of invalid arguments for `loss`, or `penultimate_layer`.
+            ValueError: In case of invalid arguments for `score`, or `penultimate_layer`.
         """
         # Preparing
-        losses = self._get_losses_for_multiple_outputs(loss)
+        scores = self._get_scores_for_multiple_outputs(score)
         seed_inputs = self._get_seed_inputs_for_multiple_inputs(seed_input)
         penultimate_output_tensor = self._find_penultimate_output(penultimate_layer,
                                                                   seek_penultimate_conv_layer)
@@ -57,12 +55,10 @@ class Gradcam(ModelVisualization):
             tape.watch(seed_inputs)
             outputs = model(seed_inputs)
             outputs, penultimate_output = outputs[:-1], outputs[-1]
-            loss_values = [loss(y) for y, loss in zip(outputs, losses)]
-        grads = tape.gradient(loss_values,
+            score_values = [score(y) for y, score in zip(outputs, scores)]
+        grads = tape.gradient(score_values,
                               penultimate_output,
                               unconnected_gradients=tf.UnconnectedGradients.ZERO)
-        if normalize_gradient:
-            grads = K.l2_normalize(grads, axis=tuple(range(len(grads))[1:]))
         weights = K.mean(grads, axis=tuple(range(grads.ndim)[1:-1]), keepdims=True)
         cam = np.sum(penultimate_output * weights, axis=-1)
         if activation_modifier is not None:
@@ -103,22 +99,22 @@ class Gradcam(ModelVisualization):
 
 class GradcamPlusPlus(Gradcam):
     def __call__(self,
-                 loss,
+                 score,
                  seed_input,
                  penultimate_layer=-1,
                  seek_penultimate_conv_layer=True,
                  activation_modifier=lambda cam: K.relu(cam),
                  expand_cam=True):
         """Generate gradient based class activation maps (CAM) by using positive gradient of
-            penultimate_layer with respect to loss.
+            penultimate_layer with respect to score.
 
             For details on GradCAM++, see the paper:
             [GradCAM++: Improved Visual Explanations for Deep Convolutional Networks]
             (https://arxiv.org/pdf/1710.11063.pdf).
 
         # Arguments
-            loss: A loss function. If the model has multiple outputs, you can use a different
-                loss on each output by passing a list of losses.
+            score: A score function. If the model has multiple outputs, you can use a different
+                score function on each output by passing a list of score functions.
             seed_input: An N-dim Numpy array. If the model has multiple inputs,
                 you have to pass a list of N-dim Numpy arrays.
             penultimate_layer: A number of integer or a tf.keras.layers.Layer object.
@@ -132,12 +128,12 @@ class GradcamPlusPlus(Gradcam):
                 a model that has multiple inputs).
         # Returns
             The heatmap image or a list of their images that indicate the `seed_input` regions
-                whose change would most contribute  the loss value,
+                whose change would most contribute  the score value,
         # Raises
-            ValueError: In case of invalid arguments for `loss`, or `penultimate_layer`.
+            ValueError: In case of invalid arguments for `score`, or `penultimate_layer`.
         """
         # Preparing
-        losses = self._get_losses_for_multiple_outputs(loss)
+        scores = self._get_scores_for_multiple_outputs(score)
         seed_inputs = self._get_seed_inputs_for_multiple_inputs(seed_input)
         penultimate_output_tensor = self._find_penultimate_output(penultimate_layer,
                                                                   seek_penultimate_conv_layer)
@@ -149,12 +145,12 @@ class GradcamPlusPlus(Gradcam):
             tape.watch(seed_inputs)
             outputs = model(seed_inputs)
             outputs, penultimate_output = outputs[:-1], outputs[-1]
-            loss_values = [loss(y) for y, loss in zip(outputs, losses)]
-        grads = tape.gradient(loss_values,
+            score_values = [score(y) for y, score in zip(outputs, scores)]
+        grads = tape.gradient(score_values,
                               penultimate_output,
                               unconnected_gradients=tf.UnconnectedGradients.ZERO)
 
-        score = sum([K.exp(tf.reshape(v, (-1, ))) for v in loss_values])
+        score = sum([K.exp(tf.reshape(v, (-1, ))) for v in score_values])
         score = tf.reshape(score, (-1, ) + tuple(np.ones(grads.ndim - 1, np.int)))
 
         first_derivative = score * grads

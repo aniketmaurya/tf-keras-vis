@@ -8,7 +8,7 @@ from tf_keras_vis.utils import check_steps, listify
 
 class Saliency(ModelVisualization):
     def __call__(self,
-                 loss,
+                 score,
                  seed_input,
                  smooth_samples=0,
                  smooth_noise=0.20,
@@ -19,8 +19,8 @@ class Saliency(ModelVisualization):
             See details: https://arxiv.org/pdf/1706.03825.pdf
 
         # Arguments
-            loss: A loss function. If the model has multiple outputs, you can use a different
-                loss on each output by passing a list of losses.
+            score: A score function. If the model has multiple outputs, you can use a different
+                score function on each output by passing a list of score functions.
             seed_input: An N-dim Numpy array. If the model has multiple inputs,
                 you have to pass a list of N-dim Numpy arrays.
             smooth_samples: The number of calculating gradients iterations. If set to zero,
@@ -31,13 +31,13 @@ class Saliency(ModelVisualization):
                 gradients to `absolute` values.
         # Returns
             The heatmap image indicating the `seed_input` regions whose change would most contribute
-            towards maximizing the loss value, Or a list of their images.
-            A list of Numpy arrays that the model inputs that maximize the out of `loss`.
+            towards maximizing the score value, Or a list of their images.
+            A list of Numpy arrays that the model inputs that maximize the out of `score`.
         # Raises
-            ValueError: In case of invalid arguments for `loss`, or `seed_input`.
+            ValueError: In case of invalid arguments for `score`, or `seed_input`.
         """
         # Preparing
-        losses = self._get_losses_for_multiple_outputs(loss)
+        scores = self._get_scores_for_multiple_outputs(score)
         seed_inputs = self._get_seed_inputs_for_multiple_inputs(seed_input)
         # Processing saliency
         if smooth_samples > 0:
@@ -54,11 +54,11 @@ class Saliency(ModelVisualization):
             seed_inputs = list(seed_inputs)
             total = (np.zeros_like(X[0]) for X in seed_inputs)
             for i in range(smooth_samples):
-                grads = self._get_gradients([X[i] for X in seed_inputs], losses, gradient_modifier)
+                grads = self._get_gradients([X[i] for X in seed_inputs], scores, gradient_modifier)
                 total = (total + g for total, g in zip(total, grads))
             grads = [g / smooth_samples for g in total]
         else:
-            grads = self._get_gradients(seed_inputs, losses, gradient_modifier)
+            grads = self._get_gradients(seed_inputs, scores, gradient_modifier)
         # Visualizing
         if not keepdims:
             grads = [np.max(g, axis=-1) for g in grads]
@@ -66,13 +66,13 @@ class Saliency(ModelVisualization):
             grads = grads[0]
         return grads
 
-    def _get_gradients(self, seed_inputs, losses, gradient_modifier):
+    def _get_gradients(self, seed_inputs, scores, gradient_modifier):
         with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
             tape.watch(seed_inputs)
             outputs = self.model(seed_inputs)
             outputs = listify(outputs)
-            loss_values = [loss(output) for output, loss in zip(outputs, losses)]
-        grads = tape.gradient(loss_values,
+            score_values = [score(output) for output, score in zip(outputs, scores)]
+        grads = tape.gradient(score_values,
                               seed_inputs,
                               unconnected_gradients=tf.UnconnectedGradients.ZERO)
         if gradient_modifier is not None:

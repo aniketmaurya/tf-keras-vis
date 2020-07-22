@@ -14,12 +14,12 @@ class ActivationMaximization(ModelVisualization):
     def __call__(self,
                  score,
                  seed_input=None,
-                 input_range=(-1, 1),
-                 input_modifiers=[Jitter(jitter=4), Rotate(degree=1)],
+                 input_range=(-1., 1.),
+                 input_modifiers=[Jitter(jitter=8), Rotate(degree=4)],
                  regularizers=[TotalVariation2D(weight=10),
-                               Norm(weight=10, p=1)],
+                               Norm(weight=10, p=2)],
                  steps=200,
-                 optimizer=tf.optimizers.RMSprop(0.01),
+                 optimizer=tf.optimizers.RMSprop(0.02, 0.92),
                  gradient_modifier=None,
                  callbacks=None):
         """Generate the model inputs that maximize the output of the given `score` functions.

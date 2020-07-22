@@ -39,27 +39,6 @@ class Jitter(InputModifier):
         return seed_input
 
 
-class Rotate2D(InputModifier):
-    def __init__(self, degree=2.):
-        """Implements an input modifier that introduces random rotation.
-            Rotate has been shown to produce crisper activation maximization images.
-
-        # Arguments:
-            degree: The amount of rotation to apply.
-        """
-        self.rg = degree * 2
-
-    def __call__(self, seed_input):
-        if tf.is_tensor(seed_input):
-            seed_input = seed_input.numpy()
-        seed_input = np.array([
-            random_rotation(x, self.rg, row_axis=0, col_axis=1, channel_axis=2) for x in seed_input
-        ])
-        #print(np.max(seed_input), np.min(seed_input))
-        #print(seed_input[..., 0], seed_input.shape, seed_input.dtype)
-        return seed_input
-
-
 class Rotate(InputModifier):
     def __init__(self, degree=2.):
         """Implements an input modifier that introduces random rotation.
@@ -79,8 +58,6 @@ class Rotate(InputModifier):
                             reshape=False,
                             mode='nearest',
                             prefilter=False)
-        #print(np.max(seed_input), np.min(seed_input))
-        #print(seed_input[..., 0], seed_input.shape, seed_input.dtype)
         return seed_input
 
 

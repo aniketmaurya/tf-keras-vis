@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 import tensorflow as tf
 from scipy.ndimage import rotate
-from tensorflow.keras.preprocessing.image import random_rotation
 
 
 class InputModifier(ABC):
@@ -14,7 +13,7 @@ class InputModifier(ABC):
         """Implement modification to the input before processing gradient descent.
 
         # Arguments:
-            seed_input: An N-dim numpy array.
+            seed_input: A tf.Tensor.
         # Returns:
             The modified `seed_input`.
         """
@@ -45,9 +44,9 @@ class Rotate(InputModifier):
             Rotate has been shown to produce crisper activation maximization images.
 
         # Arguments:
-            degree: The amount of rotation to apply.
+            degree: Integer or float. The amount of rotation to apply.
         """
-        self.rg = degree
+        self.rg = float(degree)
 
     def __call__(self, seed_input):
         if tf.is_tensor(seed_input):
@@ -59,17 +58,3 @@ class Rotate(InputModifier):
                             mode='nearest',
                             prefilter=False)
         return seed_input
-
-
-class Noise(InputModifier):
-    def __init__(self, rate=0.05):
-        self.rate = rate
-
-    def __call__(self, seed_input):
-        noise = tf.stack([
-            tf.random.normal(
-                seed_input[i].shape,
-                stddev=(tf.math.reduce_max(seed_input[i]) - tf.math.reduce_max(seed_input[i])) *
-                self.rate) for i in range(seed_input.shape[0])
-        ])
-        return seed_input + noise

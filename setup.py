@@ -19,7 +19,7 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.5, <3.9',
-    install_requires=['scipy==1.4.*', 'imageio==2.8.*', 'pillow==7.1.*', 'deprecated'],
+    install_requires=['scipy==1.4.*', 'pillow==7.1.*', 'deprecated'],
     extras_require={
         'develop': ['flake8', 'isort', 'yapf', 'pytest', 'pytest-pep8', 'pytest-cov'],
         'examples': ['jupyterlab', 'matplotlib'],

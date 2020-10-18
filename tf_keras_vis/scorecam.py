@@ -4,7 +4,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 
 from tf_keras_vis.gradcam import Gradcam
-from tf_keras_vis.utils import listify, zoom_factor
+from tf_keras_vis.utils import listify, zoom_factor, normalize
 
 
 class ScoreCAM(Gradcam):
@@ -16,7 +16,8 @@ class ScoreCAM(Gradcam):
                  activation_modifier=lambda cam: K.relu(cam),
                  expand_cam=True,
                  batch_size=32,
-                 max_N=None):
+                 max_N=None,
+                 normalize_cam=True):
         """Generate score-weighted class activation maps (CAM) by using gradient-free visualization method.
 
             For details on Score-CAM, see the paper:
@@ -45,6 +46,7 @@ class ScoreCAM(Gradcam):
                 Set larger number, need more time to visualize CAM but to be able to get
                 clearer attention images.
                 (see for details: https://github.com/tabayashi0117/Score-CAM#faster-score-cam)
+            normalize_cam: A bool. If True(default), cam will be normalized.
         # Returns
             The heatmap image or a list of their images that indicate the `seed_input` regions
                 whose change would most contribute  the score value,
@@ -134,10 +136,14 @@ class ScoreCAM(Gradcam):
             cam = activation_modifier(cam)
 
         if not expand_cam:
+            if normalize_cam:
+                cam = normalize(cam)
             return cam
 
         factors = (zoom_factor(cam.shape, X.shape) for X in seed_inputs)
         cam = [zoom(cam, factor) for factor in factors]
+        if normalize_cam:
+            cam = [normalize(x) for x in cam]
         if len(self.model.inputs) == 1 and not isinstance(seed_input, list):
             cam = cam[0]
         return cam

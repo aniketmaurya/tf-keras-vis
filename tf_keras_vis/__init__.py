@@ -14,9 +14,10 @@ class ModelVisualization(ABC):
         # Arguments
             model: The `tf.keras.Model` instance. This model will be cloned by
                 `tf.keras.models.clone_model` function and then will be modified by
-                `model_modifier` according to need. Therefore the model will be NOT modified.
+                `model_modifier` according to needs, when `clone` is True.
+                Therefore the model will be NOT modified.
             model_modifier: A function that modify `model` instance. For example, in
-                ActivationMaximization normally, this function is used to replace the softmax
+                ActivationMaximization usually, this function is used to replace the softmax
                 function that was applied to the model outputs.
             clone: A bool. If you won't model to be copied, you can set this option to False.
         """

@@ -3,7 +3,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 
 from tf_keras_vis import ModelVisualization
-from tf_keras_vis.utils import check_steps, listify
+from tf_keras_vis.utils import check_steps, listify, normalize
 
 
 class Saliency(ModelVisualization):
@@ -13,7 +13,9 @@ class Saliency(ModelVisualization):
                  smooth_samples=0,
                  smooth_noise=0.20,
                  keepdims=False,
-                 gradient_modifier=lambda grads: K.abs(grads)):
+                 gradient_modifier=lambda grads: K.abs(grads),
+                 normalize_saliency=True,
+                 unconnected_gradients=tf.UnconnectedGradients.NONE):
         """Generate an attention map that appears how output value changes with respect to a small
             change in input image pixels.
             See details: https://arxiv.org/pdf/1706.03825.pdf
@@ -29,6 +31,10 @@ class Saliency(ModelVisualization):
             keepdims: A boolean that whether to keep the channels-dim or not.
             gradient_modifier: A function to modify gradients. By default, the function modify
                 gradients to `absolute` values.
+            normalize_saliency: A bool. If True(default), saliency map will be normalized.
+            unconnected_gradients: Specifies the gradient value returned when the given input
+                tensors are unconnected. Accepted values are constants defined in the class
+                `tf.UnconnectedGradients` and the default value is NONE.
         # Returns
             The heatmap image indicating the `seed_input` regions whose change would most contribute
             towards maximizing the score value, Or a list of their images.
@@ -54,19 +60,23 @@ class Saliency(ModelVisualization):
             seed_inputs = list(seed_inputs)
             total = (np.zeros_like(X[0]) for X in seed_inputs)
             for i in range(smooth_samples):
-                grads = self._get_gradients([X[i] for X in seed_inputs], scores, gradient_modifier)
+                grads = self._get_gradients([X[i] for X in seed_inputs], scores, gradient_modifier,
+                                            unconnected_gradients)
                 total = (total + g for total, g in zip(total, grads))
             grads = [g / smooth_samples for g in total]
         else:
-            grads = self._get_gradients(seed_inputs, scores, gradient_modifier)
+            grads = self._get_gradients(seed_inputs, scores, gradient_modifier,
+                                        unconnected_gradients)
         # Visualizing
         if not keepdims:
             grads = [np.max(g, axis=-1) for g in grads]
+        if normalize_saliency:
+            grads = [normalize(g) for g in grads]
         if len(self.model.inputs) == 1 and not isinstance(seed_input, list):
             grads = grads[0]
         return grads
 
-    def _get_gradients(self, seed_inputs, scores, gradient_modifier):
+    def _get_gradients(self, seed_inputs, scores, gradient_modifier, unconnected_gradients):
         with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
             tape.watch(seed_inputs)
             outputs = self.model(seed_inputs)
@@ -74,7 +84,7 @@ class Saliency(ModelVisualization):
             score_values = [score(output) for output, score in zip(outputs, scores)]
         grads = tape.gradient(score_values,
                               seed_inputs,
-                              unconnected_gradients=tf.UnconnectedGradients.ZERO)
+                              unconnected_gradients=unconnected_gradients)
         if gradient_modifier is not None:
             grads = [gradient_modifier(g) for g in grads]
         return grads

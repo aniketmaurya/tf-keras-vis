@@ -1,11 +1,12 @@
 import numpy as np
+import warnings
 import tensorflow as tf
 import tensorflow.keras.backend as K
 from scipy.ndimage.interpolation import zoom
 from tensorflow.python.keras.layers.convolutional import Conv
 
 from tf_keras_vis import ModelVisualization
-from tf_keras_vis.utils import find_layer, zoom_factor
+from tf_keras_vis.utils import find_layer, zoom_factor, normalize
 
 
 class Gradcam(ModelVisualization):
@@ -15,7 +16,10 @@ class Gradcam(ModelVisualization):
                  penultimate_layer=-1,
                  seek_penultimate_conv_layer=True,
                  activation_modifier=lambda cam: K.relu(cam),
-                 expand_cam=True):
+                 normalize_gradient=None,
+                 expand_cam=True,
+                 normalize_cam=True,
+                 unconnected_gradients=tf.UnconnectedGradients.NONE):
         """Generate gradient based class activation maps (CAM) by using positive gradient of
             penultimate_layer with respect to score.
 
@@ -33,16 +37,24 @@ class Gradcam(ModelVisualization):
                 `keras.layers.convolutional.Conv` class.
                 If False, the penultimate layer is that was elected by penultimate_layer index.
             activation_modifier: A function to modify gradients.
+            normalize_gradient: Note! This option is now disabled.
             expand_cam: True to expand cam to same as input image size.
                 ![Note] Even if the model has multiple inputs, this function return only one cam
                 value (That's, when `expand_cam` is True, multiple cam images are generated from
                 a model that has multiple inputs).
+            normalize_cam: A bool. If True(default), cam will be normalized.
+            unconnected_gradients: Specifies the gradient value returned when the given input
+                tensors are unconnected. Accepted values are constants defined in the class
+                `tf.UnconnectedGradients` and the default value is NONE.
         # Returns
             The heatmap image or a list of their images that indicate the `seed_input` regions
                 whose change would most contribute  the score value,
         # Raises
             ValueError: In case of invalid arguments for `score`, or `penultimate_layer`.
         """
+        if normalize_gradient is not None:
+            warnings.warn(('`normalize_gradient` option of GradCAM#__call__() is disabled.,'
+                           ' And this will be removed in future.'), DeprecationWarning)
         # Preparing
         scores = self._get_scores_for_multiple_outputs(score)
         seed_inputs = self._get_seed_inputs_for_multiple_inputs(seed_input)
@@ -58,18 +70,22 @@ class Gradcam(ModelVisualization):
             score_values = [score(y) for y, score in zip(outputs, scores)]
         grads = tape.gradient(score_values,
                               penultimate_output,
-                              unconnected_gradients=tf.UnconnectedGradients.ZERO)
+                              unconnected_gradients=unconnected_gradients)
         weights = K.mean(grads, axis=tuple(range(grads.ndim)[1:-1]), keepdims=True)
         cam = np.sum(penultimate_output * weights, axis=-1)
         if activation_modifier is not None:
             cam = activation_modifier(cam)
 
         if not expand_cam:
+            if normalize_cam:
+                cam = normalize(cam)
             return cam
 
         # Visualizing
         factors = (zoom_factor(cam.shape, X.shape) for X in seed_inputs)
         cam = [zoom(cam, factor) for factor in factors]
+        if normalize_cam:
+            cam = [normalize(x) for x in cam]
         if len(self.model.inputs) == 1 and not isinstance(seed_input, list):
             cam = cam[0]
         return cam
@@ -104,7 +120,9 @@ class GradcamPlusPlus(Gradcam):
                  penultimate_layer=-1,
                  seek_penultimate_conv_layer=True,
                  activation_modifier=lambda cam: K.relu(cam),
-                 expand_cam=True):
+                 expand_cam=True,
+                 normalize_cam=True,
+                 unconnected_gradients=tf.UnconnectedGradients.NONE):
         """Generate gradient based class activation maps (CAM) by using positive gradient of
             penultimate_layer with respect to score.
 
@@ -126,6 +144,10 @@ class GradcamPlusPlus(Gradcam):
                 ![Note] Even if the model has multiple inputs, this function return only one cam
                 value (That's, when `expand_cam` is True, multiple cam images are generated from
                 a model that has multiple inputs).
+            normalize_cam: A bool. If True(default), cam will be normalized.
+            unconnected_gradients: Specifies the gradient value returned when the given input
+                tensors are unconnected. Accepted values are constants defined in the class
+                `tf.UnconnectedGradients` and the default value is NONE.
         # Returns
             The heatmap image or a list of their images that indicate the `seed_input` regions
                 whose change would most contribute  the score value,
@@ -148,7 +170,7 @@ class GradcamPlusPlus(Gradcam):
             score_values = [score(y) for y, score in zip(outputs, scores)]
         grads = tape.gradient(score_values,
                               penultimate_output,
-                              unconnected_gradients=tf.UnconnectedGradients.ZERO)
+                              unconnected_gradients=unconnected_gradients)
 
         score = sum([K.exp(tf.reshape(v, (-1, ))) for v in score_values])
         score = tf.reshape(score, (-1, ) + tuple(np.ones(grads.ndim - 1, np.int)))
@@ -187,10 +209,14 @@ class GradcamPlusPlus(Gradcam):
             cam = activation_modifier(cam)
 
         if not expand_cam:
+            if normalize_cam:
+                cam = normalize(cam)
             return cam
 
         factors = (zoom_factor(cam.shape, X.shape) for X in seed_inputs)
         cam = [zoom(cam, factor) for factor in factors]
+        if normalize_cam:
+            cam = [normalize(x) for x in cam]
         if len(self.model.inputs) == 1 and not isinstance(seed_input, list):
             cam = cam[0]
         return cam

@@ -5,7 +5,7 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.layers import (Conv2D, Dense, GlobalAveragePooling2D, Input)
 
 from tf_keras_vis.saliency import Saliency
-from tf_keras_vis.utils.losses import CategoricalScore
+from tf_keras_vis.utils.scores import CategoricalScore
 
 
 @pytest.fixture(scope="function", autouse=True)

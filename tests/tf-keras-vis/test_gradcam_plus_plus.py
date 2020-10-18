@@ -6,7 +6,7 @@ from tensorflow.keras.layers import (Conv2D, Dense, GlobalAveragePooling2D, Inpu
 from tensorflow.keras.models import Model
 
 from tf_keras_vis.gradcam import GradcamPlusPlus as Gradcam
-from tf_keras_vis.utils.losses import CategoricalScore
+from tf_keras_vis.utils.scores import CategoricalScore
 
 
 @pytest.fixture(scope="function", autouse=True)

@@ -5,12 +5,12 @@ from tensorflow.keras.layers import (Conv2D, Dense, GlobalAveragePooling2D, Inpu
 from tensorflow.keras.models import Model
 
 from tf_keras_vis.activation_maximization import ActivationMaximization
-from tf_keras_vis.utils.callbacks import OptimizerCallback
-from tf_keras_vis.utils.losses import CategoricalScore
+from tf_keras_vis.activation_maximization.callbacks import Callback
+from tf_keras_vis.utils.scores import CategoricalScore
 from tf_keras_vis.utils.regularizers import Norm, TotalVariation2D
 
 
-class MockCallback(OptimizerCallback):
+class MockCallback(Callback):
     def on_begin(self):
         self.on_begin_was_called = True
 

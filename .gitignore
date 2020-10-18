@@ -112,3 +112,5 @@ examples/workspace.ipynb
 .node-version
 *.nbconvert.ipynb
 /temp/
+.DS_Store
+*.txt
